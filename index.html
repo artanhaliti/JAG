@@ -14,6 +14,9 @@ box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:en
 :root{--rbg:#fdf0ee;--rink:#b3261e;--rline:#f6d0cc}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--rbg:#3a2322;--rink:#ff9d92;--rline:#5a3532}}
 :root[data-theme="dark"]{--rbg:#3a2322;--rink:#ff9d92;--rline:#5a3532}
+:root{--wbg:#fff6e0;--wline:#efd48f;--wink:#6b4a00}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--wbg:#3a2f14;--wline:#5c4a22;--wink:#f0c674}}
+:root[data-theme="dark"]{--wbg:#3a2f14;--wline:#5c4a22;--wink:#f0c674}
 html{scroll-padding-top:env(safe-area-inset-top,0px)}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
@@ -62,6 +65,10 @@ button{font:inherit;cursor:pointer;touch-action:manipulation;-webkit-tap-highlig
 .tag{font-weight:600}
 .sum{display:flex;gap:18px;flex-wrap:wrap;margin-top:6px;padding-top:8px;border-top:1px solid var(--line);font-size:.9rem;color:var(--mute)}
 .total{display:flex;justify-content:space-between;padding:10px 16px;color:var(--mute)}
+.res.warn{background:var(--wbg);border:1px solid var(--wline);color:var(--wink)}
+.wp{margin:8px 0 0}
+.wbar{display:flex;gap:10px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap}
+.wbar .btn{flex:1 1 140px;max-width:240px}
 @media (pointer:coarse){.pop button{padding:9px 12px}.pop.mins button{padding:9px 10px}.tg{padding:10px 0}}
 @media (max-width:600px){
 main{padding:20px 12px 40px}
@@ -103,7 +110,8 @@ p.sub{font-size:.92rem}
 const rowsEl=document.getElementById('rows'),msg=document.getElementById('msg'),out=document.getElementById('out');
 const pad=n=>String(n).padStart(2,'0');
 const h12=h=>(h%12||12)+(h>=12?'pm':'am');
-const clock=m=>{let h=Math.floor(m/60),mi=m%60;return (h%12||12)+':'+pad(mi)+' '+(h>=12?'PM':'AM');};
+const clock=m=>{m=((m%1440)+1440)%1440;let h=Math.floor(m/60),mi=m%60;return (h%12||12)+':'+pad(mi)+' '+(h>=12?'PM':'AM');};
+const dl=m=>clock(m)+(m>=1440?' (next day)':'');
 const fmt=m=>{m=Math.round(m);const h=Math.floor(m/60),r=m%60;return h?h+' hr '+r+' min':r+' min';};
 function el(tag,cls,txt){const e=document.createElement(tag);if(cls)e.className=cls;if(txt!==undefined)e.textContent=txt;return e;}
 /* ---- hh : mm time field ---- */
@@ -184,7 +192,7 @@ function readT(w){
   return +h*60+ +mi.value;
 }
 /* ---- calculation ---- */
-function calc(){
+function calc(confirmed){
   closePop();msg.textContent='';out.innerHTML='';
   const ev=[];
   for(const r of rowsEl.querySelectorAll('.row')){
@@ -192,10 +200,25 @@ function calc(){
     const s=readT(r.querySelector('.st')),e=readT(r.querySelector('.en'));
     if(!name&&s===null&&e===null)continue;
     if(!name||s===null||e===null){msg.textContent='Each claim needs a name or number, a start time and an end time.';return;}
-    if(e<=s){msg.textContent='The end time for "'+name+'" must be after its start time.';return;}
-    ev.push({name,s,e,mins:0,alone:0,shared:0,segs:[]});
+    if(e===s){msg.textContent='The start and end time for "'+name+'" are the same.';return;}
+    ev.push({name,s,e:e<s?e+1440:e,nd:e<s,mins:0,alone:0,shared:0,segs:[]});
   }
   if(!ev.length){msg.textContent='Add at least one claim.';return;}
+  const cross=ev.filter(x=>x.nd);
+  if(cross.length&&!confirmed){
+    const box=el('div','res warn');
+    box.appendChild(el('strong',null,'Please confirm'));
+    if(cross.length===1){box.appendChild(el('p','wp',cross[0].name+' runs '+clock(cross[0].s)+' to '+clock(cross[0].e)+' the next day. Is that correct?'));}
+    else{box.appendChild(el('p','wp','These claims end the next day. Is that correct?'));cross.forEach(x=>box.appendChild(el('p','wp',x.name+': '+clock(x.s)+' to '+clock(x.e)+' (next day)')));}
+    const bar=el('div','wbar');
+    const back=el('button','btn','Go back');back.type='button';
+    back.onclick=()=>{out.innerHTML='';rowsEl.scrollIntoView({behavior:'smooth',block:'start'});};
+    const yes=el('button','btn primary','Yes, calculate');yes.type='button';
+    yes.onclick=()=>calc(true);
+    bar.append(back,yes);box.appendChild(bar);out.appendChild(box);
+    box.scrollIntoView({behavior:'smooth',block:'nearest'});
+    return;
+  }
   const pts=[...new Set(ev.flatMap(x=>[x.s,x.e]))].sort((a,b)=>a-b);
   const segs=[];
   for(let i=0;i<pts.length-1;i++){
@@ -214,12 +237,17 @@ function calc(){
       x.segs.push({a:sg.a,b:sg.b,len,share,others:sg.act.filter(o=>o!==k).map(o=>ev[o].name)});
     });
   });
-  let total=0;
-  ev.forEach(x=>{x.tenths=Math.ceil(x.mins/6-1e-9);total+=x.tenths;});
+  const worked=ev.reduce((s,x)=>s+x.mins,0);
+  const total=Math.ceil(worked/6-1e-9);
+  ev.forEach((x,i)=>{x.ex=x.mins/6;x.tenths=Math.floor(x.ex+1e-9);x.i=i;});
+  let rem=total-ev.reduce((s,x)=>s+x.tenths,0);
+  const fr=x=>x.ex-Math.floor(x.ex+1e-9);
+  const order=[...ev].sort((a,b)=>(fr(b)-fr(a))||(b.mins-a.mins)||(a.i-b.i));
+  for(let k=0;rem>0;k++,rem--)order[k%order.length].tenths++;
   ev.forEach(x=>{
     const d=el('div','res');
     const top=el('div','top'),l=el('div');
-    l.append(el('strong',null,x.name),el('small',null,clock(x.s)+' to '+clock(x.e)));
+    l.append(el('strong',null,x.name),el('small',null,dl(x.s)+' to '+dl(x.e)));
     top.append(l,el('b',null,(x.tenths/10).toFixed(1)+' hrs'));
     d.appendChild(top);
     const tg=el('button','tg','Details');tg.type='button';tg.setAttribute('aria-expanded','false');
@@ -227,7 +255,7 @@ function calc(){
     tg.onclick=()=>{det.hidden=!det.hidden;tg.setAttribute('aria-expanded',String(!det.hidden));tg.textContent=det.hidden?'Details':'Hide details';};
     x.segs.forEach(sg=>{
       const r=el('div','seg'),a=el('span');
-      a.append(el('span','tag',sg.others.length?'Shared':'Unshared'),document.createTextNode(' '+clock(sg.a)+' to '+clock(sg.b)+(sg.others.length?' with '+sg.others.join(', '):'')));
+      a.append(el('span','tag',sg.others.length?'Shared':'Unshared'),document.createTextNode(' '+dl(sg.a)+' to '+dl(sg.b)+(sg.others.length?' with '+sg.others.join(', '):'')));
       r.append(a,el('span',null,sg.others.length?fmt(sg.len)+' ÷ '+(sg.others.length+1)+' = '+fmt(sg.share):fmt(sg.len)));
       det.appendChild(r);
     });
@@ -242,7 +270,7 @@ function calc(){
 }
 document.getElementById('add').onclick=addRow;
 document.getElementById('clear').onclick=()=>{closePop();rowsEl.innerHTML='';out.innerHTML='';msg.textContent='';addRow();addRow();};
-document.getElementById('calc').onclick=calc;
+document.getElementById('calc').onclick=()=>calc(false);
 addRow();addRow();
 </script>
 </body>
