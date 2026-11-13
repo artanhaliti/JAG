@@ -32,7 +32,7 @@ input:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline
 .pair input{width:58px;text-align:center;cursor:pointer}
 .pair input.on{border-color:var(--accent);box-shadow:0 0 0 3px var(--hi)}
 .colon{color:var(--mute);font-weight:600}
-.tf{position:relative}
+.tf{position:relative;min-width:0}
 .ap{position:absolute;left:0;top:100%;white-space:nowrap;font-size:.8rem;color:var(--accent);font-weight:600;margin-top:3px}
 .pop{position:absolute;top:calc(100% + 6px);left:0;z-index:30;background:var(--card);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);padding:6px;display:grid;grid-auto-flow:column;max-width:calc(100vw - 16px)}
 .pop.hours{grid-template-rows:repeat(12,auto);grid-template-columns:repeat(2,auto);column-gap:4px}
@@ -68,10 +68,10 @@ main{padding:20px 12px 40px}
 .card{padding:12px}
 h1{font-size:1.4rem}.logo img{height:84px}
 p.sub{font-size:.92rem}
-.row{position:relative;grid-template-columns:1fr 1fr;padding:12px 12px 32px;gap:12px}
+.row{position:relative;grid-template-columns:minmax(0,1fr) minmax(0,1fr);padding:12px 12px 32px;gap:12px}
 .row>.cn{grid-column:1/-1;padding-right:54px}
 .row .rm{position:absolute;top:37px;right:12px}
-.pair input{width:auto;flex:1;min-width:0}
+.pair input{width:0;flex:1 1 0;min-width:0}
 .pop{position:fixed;left:0!important;right:0;bottom:0;top:auto;max-width:none;max-height:72vh;overflow-y:auto;border-radius:16px 16px 0 0;padding:10px 10px calc(10px + env(safe-area-inset-bottom,0px));box-shadow:0 -8px 30px rgba(0,0,0,.25)}
 .pop.hours{grid-template-columns:repeat(2,1fr);column-gap:8px}
 .pop.mins{grid-template-columns:repeat(6,1fr);column-gap:4px}
