@@ -237,7 +237,7 @@ function calc(){
     d.append(tg,det);out.appendChild(d);
   });
   const t=el('div','total');
-  t.append(el('span',null,'Total billed'),el('span',null,(total/10).toFixed(1)+' hrs'));
+  t.append(el('span',null,'Total to be billed'),el('span',null,(total/10).toFixed(1)+' hrs'));
   out.appendChild(t);
 }
 document.getElementById('add').onclick=addRow;
